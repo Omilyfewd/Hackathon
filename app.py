@@ -1,7 +1,6 @@
 import streamlit as st
 import json
 
-keyNumber = 0;
 #Functions
 def createNewExpander(origin, name, description):
     origin.append({
@@ -28,8 +27,9 @@ with tab2:
     if "low" not in st.session_state:
         st.session_state.low = []
 
-    if st.button("click me"):
-        createNewExpander(st.session_state.low, "Void Paper", "This guy sucks")
+    if st.button("low"):
+        for x in range(5):
+            createNewExpander(st.session_state.low, f"Void Paper_{x}", "This guy sucks")
 
     for i, data in enumerate(st.session_state.low):
         with st.expander(data["name"]):
@@ -37,12 +37,13 @@ with tab2:
 
             action = st.selectbox(
                 "Action",
-                ["Profile", "Low Match/Scam", "Medium Match", "High Match"],
-                key=f"action_{keyNumber}"
+                ["Profile", "Move to Medium Match", "Move to High Match"],
+                key=f"lowAction_{i}"
             )
 
-            if st.button("Confirm",  key=f"action_{keyNumber}"):
-                st.write("ok")
+            if st.button("Confirm",  key=f"lowButton_{i}"):
+                st.session_state.low.pop(i)
+                st.rerun()
 
 with tab3:
     st.header("Medium Match/Clarification Needed")
@@ -50,8 +51,44 @@ with tab3:
     if "medium" not in st.session_state:
         st.session_state.medium = []
 
+    if st.button("medium"):
+        for x in range(5):
+            createNewExpander(st.session_state.medium, f"Someone Shady_{x}", "This guy sucks")
+
+    for i, data in enumerate(st.session_state.medium):
+        with st.expander(data["name"]):
+            st.write(data["description"])
+
+            action = st.selectbox(
+                "Action",
+                ["Profile", "Move to Low Match/Scam", "Move to High Match"],
+                key=f"mediumAction_{i}"
+            )
+
+            if st.button("Confirm",  key=f"mediumButton_{i}"):
+                st.session_state.medium.pop(i)
+                st.rerun()
+
 with tab4:
     st.header("High Match")
 
     if "high" not in st.session_state:
         st.session_state.high = []
+
+    if st.button("high"):
+        for x in range(5):
+            createNewExpander(st.session_state.high, f"Big Yahu_{x}", "This guy sucks")
+
+    for i, data in enumerate(st.session_state.high):
+        with st.expander(data["name"]):
+            st.write(data["description"])
+
+            action = st.selectbox(
+                "Action",
+                ["Profile", "Move to Low Match/Scam", "Move to High Match"],
+                key=f"highAction_{i}"
+            )
+
+            if st.button("Confirm",  key=f"highButton_{i}"):
+                st.session_state.high.pop(i)
+                st.rerun()
