@@ -1,11 +1,13 @@
 import os
 import instructor
-from litellm import completion
+import litellm
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from typing import List
+from logger import log_raw_response
 
 load_dotenv()
+
 
 
 # 1. Define the Structured Output (Your Team's Criteria)
@@ -20,7 +22,7 @@ class LeadAnalysis(BaseModel):
 
 
 # 2. Patch LiteLLM with Instructor
-client = instructor.from_litellm(completion)
+client = instructor.from_litellm(litellm.completion)
 
 
 def analyze_lead(email_content, user_preferences):
@@ -29,6 +31,8 @@ def analyze_lead(email_content, user_preferences):
         response = client.chat.completions.create(
             model="gemini/gemini-3.1-flash-lite-preview",
             response_model=LeadAnalysis,
+            max_retries=2,
+            temperature=0.3,
             messages=[
                 {"role": "system",
                  "content": "You are a professional freelance lead triage agent. Use straightforward language without trivializing details."},
@@ -41,6 +45,10 @@ def analyze_lead(email_content, user_preferences):
                 """}
             ]
         )
+
+        log_raw_response(response)
+
+
         return response
     except Exception as e:
         print(f"Analysis failed: {e}")
