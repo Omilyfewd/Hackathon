@@ -2,6 +2,8 @@ import streamlit as st
 import time
 import json
 
+from appData import init_profile, modifyData, getData
+
 #Functions
 
 #Expander Logic
@@ -22,29 +24,55 @@ with col2:
     st.write("")
     st.write("")
     if st.button("Send All"):
+        for i in range(len(st.session_state.low)):
+            st.session_state.low.pop()
+        for i in range(len(st.session_state.medium)):
+            st.session_state.medium.pop()
+        for i in range(len(st.session_state.high)):
+            st.session_state.high.pop()
+
         sendButton.success("Sent!")
-        time.sleep(3) # Wait 3 Seconds
+        time.sleep(2)
         sendButton.empty()
 
-
-
+init_profile()
 #Menu
 profile, low, medium, high = st.tabs(["Profile", "Low Match/Scam", "Medium Match/Clarification Needed", "High Match"])
 
 with profile:
     st.header("Profile")
-
     st.subheader("Please input your information")
-    idealWorkingHours = st.text_input("What are your ideal working hours?")
-    deadlines = st.text_input("What are your current deadlines?")
-    idealWage = st.text_input("What is your prefered dollars earned per hour?")
+    st.write("Input clear to delete current information")
+
+    data = getData()
+    with st.expander("Current Information"):
+        st.write(f"**Current Working Hours:** {data['hours']}")
+        st.write(f"**Ideal Wage:** {data['wage']}")
+        st.write(f"**Current Workload:** {data['workload']}")
+        
+
+    idealWorkingHours = st.text_input(
+        "What are your ideal working hours?",
+        value=st.session_state.idealWorkHours
+    )
+
+    idealWage = st.text_input(
+        "Preferred wage",
+        value=st.session_state.idealWage
+    )
+
+    deadlines = st.text_input(
+        "Current workload",
+        value=st.session_state.currentWorkLoad
+    )
     #add more questions
 
     if st.button("Confirm", key="profileButton"):
         confirmButton = st.empty()
+        modifyData(idealWorkingHours, idealWage, deadlines)
         confirmButton.success("Saved!")
-        time.sleep(3) # Wait 3 Seconds
-        confirmButton.empty()
+        time.sleep(2) # Wait 3 Seconds
+        st.rerun()
 
 
 with low:
