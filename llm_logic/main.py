@@ -1,12 +1,17 @@
-import os
 import instructor
 import litellm
 from dotenv import load_dotenv
+from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List
-from logger import log_raw_response
 
-load_dotenv()
+try:
+    from llm_logic.logger import log_raw_response
+except ModuleNotFoundError:
+    from logger import log_raw_response
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(PROJECT_ROOT / "keys_and_tokens" / ".env")
 
 
 

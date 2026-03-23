@@ -264,3 +264,5 @@ Thumbs.db
 # =========================
 .env
 .env.*
+keys_and_tokens/
+logs_test_outputs/
