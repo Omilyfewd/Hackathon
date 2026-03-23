@@ -11,29 +11,9 @@ def createNewExpander(origin, name, description):
         "description": description
         })
 
-#Button Logic
-def timed_button(label, key, duration=3, success_text="Done!"):
-    # Initialize state for this button
-    if key not in st.session_state:
-        st.session_state[key] = 0
-
-    # Determine what text to show
-    if time.time() - st.session_state[key] < duration:
-        current_label = success_text
-        disabled = True
-    else:
-        current_label = label
-        disabled = False
-
-    # Create button
-    if st.button(current_label, key=key + "_btn", disabled=disabled):
-        st.session_state[key] = time.time()
-        return True  # button was clicked
-
-    return False
-
 #Top
 col1, col2 = st.columns([7, 1])
+sendButton = st.empty()
 
 with col1:
     st.title("Dashboard")
@@ -42,7 +22,9 @@ with col2:
     st.write("")
     st.write("")
     if st.button("Send All"):
-        st.write("Sending...")
+        sendButton.success("Sent!")
+        time.sleep(3) # Wait 3 Seconds
+        sendButton.empty()
 
 
 
@@ -57,10 +39,14 @@ with profile:
     deadlines = st.text_input("What are your current deadlines?")
     idealWage = st.text_input("What is your prefered dollars earned per hour?")
     #add more questions
-    
-    if timed_button("Confirm", key="profileButton"):
-        #implement Logic to change self
-        st.write("placeholder")
+
+    if st.button("Confirm", key="profileButton"):
+        confirmButton = st.empty()
+        confirmButton.success("Saved!")
+        time.sleep(3) # Wait 3 Seconds
+        confirmButton.empty()
+
+
 with low:
     st.header("Low Match/Scam")
 
