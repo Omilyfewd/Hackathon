@@ -1,8 +1,9 @@
-import streamlit as st
-import time
 import json
+import time
 
-from appData import init_profile, modifyData, getData
+import streamlit as st
+
+from frontend.app_data import getData, init_profile, modifyData
 
 #Functions
 
