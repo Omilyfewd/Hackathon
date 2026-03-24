@@ -16,13 +16,37 @@ load_dotenv(PROJECT_ROOT / "keys_and_tokens" / ".env")
 
 
 class LeadAnalysis(BaseModel):
+    # --- Existing Fields ---
     scam_likelihood: int = Field(description="0-100 score. 100 is definitely a scam.")
     budget_fit: int = Field(ge=1, le=10, description="Alignment with user's ideal wage.")
     scope_clarity: int = Field(ge=1, le=10, description="How well defined the task is.")
     timeline_reasonable: bool = Field(description="Is the deadline realistic?")
     red_flags: List[str] = Field(description="Specific concerns about the client or project.")
     summary: str = Field(description="2-sentence neutral overview of the request.")
-    suggested_reply_type: str = Field(description="Options: 'Reject', 'Clarify', 'Accept'")
+    suggested_reply_type: Literal["Reject", "Clarify", "Accept"] = Field(description="The chosen workflow path.")
+
+    # --- NEW: Information Extraction Fields ---
+    client_name: str = Field(default="there", description="The name of the sender. Use 'there' if not found.")
+    company_name: Optional[str] = Field(description="The name of the client's company or project.")
+
+    # For Acceptance/Scope Recap
+    extracted_goals: List[str] = Field(description="The top 3 specific goals or features the client wants built.")
+    technical_requirements: List[str] = Field(
+        description="Specific tools, languages, or platforms mentioned (e.g. Python, Shopify).")
+
+    # For Clarification
+    missing_info: List[str] = Field(
+        description="List specific details missing that are needed to provide a quote (e.g. 'total page count').")
+
+    # For Personalization
+    personalization_hook: str = Field(
+        description="A specific phrase or detail the client mentioned to include in the reply to show we read the email.")
+
+    # For the Streamlit Editor
+    draft_reply: str = Field(
+        description="A full email draft using [[brackets]] for values the freelancer must manually confirm, like price or dates.")
+
+
 
 
 client = instructor.from_litellm(litellm.completion)
