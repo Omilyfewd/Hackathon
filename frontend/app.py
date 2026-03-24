@@ -42,11 +42,14 @@ with col2:
             for i in range(len(st.session_state.high)):
                 st.session_state.high.pop()
 
-            sendButton.success("Sent!")
+            sendButton.success("Sending!")
             time.sleep(2)
             sendButton.empty()
         else:
-            st.error("No Emails to Send...")
+            sendButton.error("No Emails to Send...")
+            time.sleep(2)
+            sendButton.empty()
+
 
 
 init_profile()
@@ -73,7 +76,7 @@ with profile:
     )
 
     idealStartTime, idealEndTime = st.slider(
-        "Select shift hours:",
+        "Ideal working hours:",
         value=(9, 17),
         min_value=0,
         max_value=24
@@ -101,7 +104,6 @@ with profile:
         "Please list your weaknesses(if any)",
         value=st.session_state.weaknesses
     )
-    #add more questions
 
     if st.button("Confirm", key="profileButton"):
         confirmButton = st.empty()
@@ -139,13 +141,11 @@ with low:
 
                 if action == "Move to High Match":
                     st.session_state.high.append(item)
-                else:
-                    st.session_state.low.pop(i)
 
                 st.rerun()
 
 with medium:
-    st.header("Medium Match/Clarification Needed")
+    st.header("Clarification Needed")
 
     #Generate Test Expanders
     if st.button("medium"):
@@ -204,5 +204,5 @@ with high:
                 item = st.session_state.high.pop(i)
 
                 if action == "Move to Low Match/Scam":
-                    st.session_state.medium.append(item)
+                    st.session_state.low.append(item)
                 st.rerun()
