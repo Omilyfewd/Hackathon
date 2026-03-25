@@ -1,19 +1,11 @@
 import json
 import time
+import re
 
 import streamlit as st
 
 from app_data import getData, init_profile, modifyData
-
-#Functions
-
-#Expander Logic
-def createNewExpander(origin, name, description):
-    origin.append({
-        "name": name,
-        "description": description
-        })
-
+from description_formating import makeDescription
 
 #Declare Arrays of Expanders
 if "low" not in st.session_state:
@@ -22,6 +14,21 @@ if "medium" not in st.session_state:
     st.session_state.medium = []
 if "high" not in st.session_state:
     st.session_state.high = []
+
+#Functions
+
+#Expander Logic
+def createNewExpander(origin, name):
+    description = makeDescription()
+    origin.append({
+        "name": name,
+        "description": description
+        })
+
+def is_valid_email(email):
+    # A basic regex pattern for email validation
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email)
 
 #Top
 col1, col2 = st.columns([7, 1])
@@ -63,12 +70,19 @@ with profile:
 
     data = getData()
     with st.expander("Current Information"):
+        st.write(f"**Email:** {data['email']}")
         st.write(f"**Website:** {data['website']}")
         st.write(f"**Current Working Hours:** {data['start_time']} to {data['end_time']}")
         st.write(f"**Ideal Wage:** {data['wage']}")
         st.write(f"**Current Workload:** {data['workload']}")
         st.write(f"**Strengths:** {data['strengths']}")
         st.write(f"**Weaknesses:** {data['weaknesses']}")
+
+
+    email = st.text_input(
+        "Please input your email",
+        value=st.session_state.email
+    )
 
     website = st.text_input(
         "Please give your website to provide to accepted clients",
@@ -107,10 +121,13 @@ with profile:
 
     if st.button("Confirm", key="profileButton"):
         confirmButton = st.empty()
-        modifyData(website, idealStartTime, idealEndTime, idealWage, currentWorkLoad, strengths, weaknesses)
-        confirmButton.success("Saved!")
-        time.sleep(2) # Wait 3 Seconds
-        st.rerun()
+        if is_valid_email(email):
+            modifyData(email, website, idealStartTime, idealEndTime, idealWage, currentWorkLoad, strengths, weaknesses)
+            confirmButton.success("Saved!")
+            time.sleep(2) # Wait 3 Seconds
+            st.rerun()
+        else:
+            confirmButton.error("Please enter a valid email")
 
 
 with low:
@@ -119,7 +136,7 @@ with low:
     #Generate Test Expanders
     if st.button("low"):
         for x in range(5):
-            createNewExpander(st.session_state.low, f"Void Paper_{x}", "This guy sucks")
+            createNewExpander(st.session_state.low, f"Void Paper_{x}")
 
     if(len(st.session_state.low) == 0):
         st.write("No Low Match or Scam Likely Emails...")
@@ -150,7 +167,7 @@ with medium:
     #Generate Test Expanders
     if st.button("medium"):
         for x in range(5):
-            createNewExpander(st.session_state.medium, f"Someone Shady_{x}", "This guys ok")
+            createNewExpander(st.session_state.medium, f"Someone Shady_{x}")
 
     if(len(st.session_state.medium) == 0):
         st.write("No Medium Match or Clarification Needed Emails...")
@@ -183,7 +200,7 @@ with high:
     #Generate Test Expanders
     if st.button("high"):
         for x in range(5):
-            createNewExpander(st.session_state.high, f"Big Yahu_{x}", "This guys great")
+            createNewExpander(st.session_state.high, f"Big Yahu_{x}")
 
     if(len(st.session_state.high) == 0):
         st.write("No High Match Emails...")
