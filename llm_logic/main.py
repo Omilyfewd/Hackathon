@@ -50,12 +50,12 @@ if __name__ == "__main__":
     test_email = load_test_email()
     my_settings = load_user_settings()
 
-    result = analyze_lead(test_email, my_settings)
+    lead_analysis = analyze_lead(test_email, my_settings)
 
-    if result:
-        print(f"Scam Risk: {result.scam_likelihood}%")
-        print(f"Budget Score: {result.budget_fit}/10")
-        print(f"Summary: {result.summary}")
+    if lead_analysis:
+        print(f"Scam Risk: {lead_analysis.scam_likelihood}%")
+        print(f"Budget Score: {lead_analysis.budget_fit}/10")
+        print(f"Summary: {lead_analysis.summary}")
 
         client_reply = write_client_reply(my_settings)
         if client_reply:

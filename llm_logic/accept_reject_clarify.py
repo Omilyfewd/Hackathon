@@ -8,12 +8,11 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 try:
-    from llm_logic.logger import log_complete_response
+    from llm_logic.logger import log_complete_response, load_latest_logged_response
 except ModuleNotFoundError:
-    from logger import log_complete_response
+    from logger import log_complete_response, load_latest_logged_response
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-ARGUMENTS_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_arguments.jsonl"
 load_dotenv(PROJECT_ROOT / "keys_and_tokens" / ".env")
 
 
@@ -214,31 +213,19 @@ REPLY_TYPE_TO_MODEL = {
 client = instructor.from_litellm(litellm.completion)
 
 
-def load_latest_arguments_entry():
-    if not ARGUMENTS_LOG_FILE.exists():
+def load_latest_analysis_entry():
+    latest_entry = load_latest_logged_response()
+    if not latest_entry:
         return None
 
-    lines = ARGUMENTS_LOG_FILE.read_text(encoding="utf-8").splitlines()
-    for line in reversed(lines):
-        if not line.strip():
-            continue
-        try:
-            parsed_line = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        if (
-            isinstance(parsed_line, dict)
-            and isinstance(parsed_line.get("arguments"), dict)
-            and parsed_line["arguments"].get("suggested_reply_type") in REPLY_TYPE_TO_MODEL
-        ):
-            return parsed_line
+    if latest_entry.get("arguments", {}).get("suggested_reply_type") in REPLY_TYPE_TO_MODEL:
+        return latest_entry
 
     return None
 
 
 def load_latest_background_context():
-    latest_entry = load_latest_arguments_entry()
+    latest_entry = load_latest_analysis_entry()
     if latest_entry is None:
         return "No prior lead analysis context available."
 
@@ -246,7 +233,7 @@ def load_latest_background_context():
 
 
 def load_latest_suggested_reply_type():
-    latest_entry = load_latest_arguments_entry()
+    latest_entry = load_latest_analysis_entry()
     if latest_entry is None:
         return None
 
@@ -259,7 +246,7 @@ def write_client_reply(user_settings, background_context=None):
 
     suggested_reply_type = load_latest_suggested_reply_type()
     if suggested_reply_type not in REPLY_TYPE_TO_MODEL:
-        print("Client reply generation failed: no valid suggested_reply_type found in llm_arguments.jsonl")
+        print("Client reply generation failed: no valid suggested_reply_type found in llm_log.json")
         return None
 
     target_model_name = REPLY_TYPE_TO_MODEL[suggested_reply_type].__name__
@@ -305,45 +292,4 @@ def write_client_reply(user_settings, background_context=None):
         return response
     except Exception as e:
         print(f"Client reply generation failed: {e}")
-        return None
-
-
-def write_acceptance_lead(user_settings, background_context=None):
-    if background_context is None:
-        background_context = load_latest_background_context()
-
-    try:
-        response = client.chat.completions.create(
-            model="gemini/gemini-3.1-flash-lite-preview",
-            response_model=LeadAnalysisAccepted,
-            max_retries=3,
-            temperature=0.2,
-            messages=[
-                {
-                    "role": "system",
-                    "content": (
-                        "You are a professional freelance client onboarding agent. "
-                        "Write a clear, confident acceptance email confirming that the freelancer "
-                        "has decided to take the project, summarize the work, propose logistics, "
-                        "and populate the structured response model accurately. "
-                        "Use [[brackets]] for values the freelancer must still confirm."
-                    ),
-                },
-                {
-                    "role": "user",
-                    "content": f"""
-                    USER PREFERENCES:
-                    {user_settings}
-
-                    BACKGROUND CONTEXT:
-                    {background_context}
-                """,
-                },
-            ],
-        )
-
-        log_complete_response(response, response_model=LeadAnalysisAccepted)
-        return response
-    except Exception as e:
-        print(f"Acceptance email generation failed: {e}")
         return None

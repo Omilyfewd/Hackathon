@@ -6,7 +6,6 @@ from typing import Union, get_args, get_origin
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_log.json"
-DEFAULT_ARGUMENTS_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_arguments.jsonl"
 DEFAULT_COMPLETE_RESPONSE_FILE = PROJECT_ROOT / "logs_test_outputs" / "complete_response.jsonl"
 DEFAULT_EMAIL_DETAILS_FILE = PROJECT_ROOT / "logs_test_outputs" / "latest_email.json"
 
@@ -68,7 +67,35 @@ def _build_response_entries(entry, response_model=None):
     if not entry:
         return []
 
-    choices = entry.get("raw_response", {}).get("choices", [])
+    raw_response = entry.get("raw_response", {})
+    parsed_response = raw_response.get("parsed_response")
+    response_type = raw_response.get("response_type")
+
+    if parsed_response is not None:
+        model_class = response_model_map.get(response_type)
+
+        if model_class is None and len(response_model_map) == 1:
+            model_class = next(iter(response_model_map.values()))
+
+        if model_class is None:
+            normalized_arguments = parsed_response
+        else:
+            field_order = list(model_class.model_fields.keys())
+            normalized_arguments = {
+                field_name: parsed_response.get(field_name)
+                for field_name in field_order
+            }
+
+        return [
+            {
+                "timestamp": entry.get("timestamp"),
+                "name": response_type,
+                "arguments": normalized_arguments,
+                "email_details": email_details,
+            }
+        ]
+
+    choices = raw_response.get("choices", [])
     response_entries = []
 
     for choice in choices:
@@ -117,44 +144,32 @@ def _append_jsonl_entries(file_path: Path, entries):
             output_handle.write(json.dumps(entry) + "\n")
 
 
-def _pop_latest_jsonl_entry(file_path: Path):
-    if not file_path.exists():
-        return None
-
-    lines = file_path.read_text(encoding="utf-8").splitlines()
-    for index in range(len(lines) - 1, -1, -1):
-        line = lines[index].strip()
-        if not line:
-            continue
-
-        try:
-            parsed_line = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-
-        if not isinstance(parsed_line, dict):
-            continue
-
-        remaining_lines = lines[:index] + lines[index + 1:]
-        new_content = "\n".join(remaining_lines)
-        if new_content:
-            new_content += "\n"
-        file_path.write_text(new_content, encoding="utf-8")
-        return parsed_line
-
-    return None
-
-
-def extract_argument_responses(source_file=None, output_file=None, response_model=None):
+def load_logged_response_entries(source_file=None, response_model=None):
     log_file = Path(source_file) if source_file else DEFAULT_LOG_FILE
-    arguments_file = Path(output_file) if output_file else DEFAULT_ARGUMENTS_LOG_FILE
     entry = _load_json_object(log_file)
-    response_entries = _build_response_entries(entry, response_model=response_model)
-    _append_jsonl_entries(arguments_file, response_entries)
+    return _build_response_entries(entry, response_model=response_model)
+
+
+def load_latest_logged_response(source_file=None, response_model=None):
+    response_entries = load_logged_response_entries(source_file=source_file, response_model=response_model)
+    if not response_entries:
+        return None
+    return response_entries[-1]
 
 
 def _write_raw_log(response, filename=None):
-    raw_data = response._raw_response.model_dump()
+    if hasattr(response, "_raw_response"):
+        raw_data = response._raw_response.model_dump()
+    elif hasattr(response, "model_dump"):
+        raw_data = {
+            "parsed_response": response.model_dump(),
+            "response_type": type(response).__name__,
+        }
+    else:
+        raw_data = {
+            "parsed_response": str(response),
+            "response_type": type(response).__name__,
+        }
 
     log_entry = {
         "timestamp": datetime.now().isoformat(),
@@ -171,14 +186,23 @@ def _write_raw_log(response, filename=None):
 
 
 def log_raw_response(response, filename=None, response_model=None):
-    log_entry, log_file = _write_raw_log(response, filename=filename)
-    response_entries = _build_response_entries(log_entry, response_model=response_model)
-    _append_jsonl_entries(DEFAULT_ARGUMENTS_LOG_FILE, response_entries)
+    _, log_file = _write_raw_log(response, filename=filename)
 
     print(f"--- Raw response saved to {log_file} ---")
 
 
-def log_complete_response(response, filename=None, response_model=None, complete_response_file=None):
+def log_complete_response(
+    response,
+    filename=None,
+    response_model=None,
+    analysis_source_file=None,
+    analysis_response_model=None,
+    complete_response_file=None,
+):
+    latest_analysis_entry = load_latest_logged_response(
+        source_file=analysis_source_file,
+        response_model=analysis_response_model,
+    )
     log_entry, log_file = _write_raw_log(response, filename=filename)
     response_entries = _build_response_entries(log_entry, response_model=response_model)
     output_file = Path(complete_response_file) if complete_response_file else DEFAULT_COMPLETE_RESPONSE_FILE
@@ -187,12 +211,10 @@ def log_complete_response(response, filename=None, response_model=None, complete
         print(f"--- Raw response saved to {log_file} ---")
         return
 
-    consumed_entry = _pop_latest_jsonl_entry(DEFAULT_ARGUMENTS_LOG_FILE)
-
     complete_entries = []
     for response_entry in response_entries:
         complete_entry = dict(response_entry)
-        complete_entry["latest_argument_entry"] = consumed_entry
+        complete_entry["lead_analysis"] = latest_analysis_entry
         complete_entries.append(complete_entry)
 
     _append_jsonl_entries(output_file, complete_entries)
