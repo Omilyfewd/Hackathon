@@ -3,8 +3,20 @@ from pathlib import Path
 
 try:
     from llm_logic.lead_analyzer import analyze_lead
+    from llm_logic.accept_reject_clarify import (
+        LeadAnalysisAccepted,
+        LeadAnalysisClarification,
+        LeadAnalysisRejected,
+        write_client_reply,
+    )
 except ModuleNotFoundError:
     from lead_analyzer import analyze_lead
+    from accept_reject_clarify import (
+        LeadAnalysisAccepted,
+        LeadAnalysisClarification,
+        LeadAnalysisRejected,
+        write_client_reply,
+    )
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LATEST_EMAIL_FILE = PROJECT_ROOT / "logs_test_outputs" / "latest_email.json"
@@ -45,5 +57,17 @@ if __name__ == "__main__":
         print(f"Budget Score: {result.budget_fit}/10")
         print(f"Summary: {result.summary}")
 
-    print(test_email)
-    print(my_settings)
+        client_reply = write_client_reply(my_settings)
+        if client_reply:
+            print(f"Reply Type: {client_reply.suggested_reply_type}")
+            print(f"Reply Subject: {client_reply.subject}")
+
+            if isinstance(client_reply, LeadAnalysisAccepted):
+                print(f"Reply Body: {client_reply.order_confirmation_template}")
+            elif isinstance(client_reply, LeadAnalysisRejected):
+                print(f"Reply Body: {client_reply.rejection_email_template}")
+            elif isinstance(client_reply, LeadAnalysisClarification):
+                print(f"Reply Body: {client_reply.clarification_email_template}")
+
+    # print(test_email)
+    # print(my_settings)

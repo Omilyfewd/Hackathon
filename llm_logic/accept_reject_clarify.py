@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Literal, Union
 
 import instructor
 import litellm
@@ -8,9 +8,9 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
 try:
-    from llm_logic.logger import log_raw_response
+    from llm_logic.logger import log_complete_response
 except ModuleNotFoundError:
-    from logger import log_raw_response
+    from logger import log_complete_response
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 ARGUMENTS_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_arguments.jsonl"
@@ -18,6 +18,9 @@ load_dotenv(PROJECT_ROOT / "keys_and_tokens" / ".env")
 
 
 class LeadAnalysisAccepted(BaseModel):  # user will edit
+    suggested_reply_type: Literal["Accept"] = Field(
+        description="Always 'Accept' for accepted leads."
+    )
     deliverable_timeline: List[str] = Field(description="Break the project down into different phases, and provide a "
                                                         "specific date for the time of each "
                                                         "completion.")
@@ -102,6 +105,9 @@ class LeadAnalysisAccepted(BaseModel):  # user will edit
 
 
 class LeadAnalysisRejected(BaseModel):
+    suggested_reply_type: Literal["Reject"] = Field(
+        description="Always 'Reject' for rejected leads."
+    )
     rejection_category: str = Field(
         description="The primary reason for rejection (e.g., 'Budget too low', 'Timeline impossible', 'Out of Scope', 'High Scam Risk', 'Capacity Full')."
     )
@@ -152,6 +158,9 @@ class LeadAnalysisRejected(BaseModel):
 
 
 class LeadAnalysisClarification(BaseModel):
+    suggested_reply_type: Literal["Clarify"] = Field(
+        description="Always 'Clarify' when more information is required."
+    )
     missing_information: List[str] = Field(
         description="List of specific details missing from the inquiry (e.g., 'Budget', 'Technical Stack', 'Deadline')."
     )
@@ -189,24 +198,114 @@ class LeadAnalysisClarification(BaseModel):
     )
 
 
+LeadReplyResponse = Union[
+    LeadAnalysisAccepted,
+    LeadAnalysisRejected,
+    LeadAnalysisClarification,
+]
+
+REPLY_TYPE_TO_MODEL = {
+    "Accept": LeadAnalysisAccepted,
+    "Reject": LeadAnalysisRejected,
+    "Clarify": LeadAnalysisClarification,
+}
+
 
 client = instructor.from_litellm(litellm.completion)
 
 
-def load_latest_background_context():
+def load_latest_arguments_entry():
     if not ARGUMENTS_LOG_FILE.exists():
-        return "No prior lead analysis context available."
+        return None
 
     lines = ARGUMENTS_LOG_FILE.read_text(encoding="utf-8").splitlines()
     for line in reversed(lines):
         if not line.strip():
             continue
         try:
-            return json.dumps(json.loads(line), indent=2)
+            parsed_line = json.loads(line)
         except json.JSONDecodeError:
-            return line
+            continue
 
-    return "No prior lead analysis context available."
+        if (
+            isinstance(parsed_line, dict)
+            and isinstance(parsed_line.get("arguments"), dict)
+            and parsed_line["arguments"].get("suggested_reply_type") in REPLY_TYPE_TO_MODEL
+        ):
+            return parsed_line
+
+    return None
+
+
+def load_latest_background_context():
+    latest_entry = load_latest_arguments_entry()
+    if latest_entry is None:
+        return "No prior lead analysis context available."
+
+    return json.dumps(latest_entry, indent=2)
+
+
+def load_latest_suggested_reply_type():
+    latest_entry = load_latest_arguments_entry()
+    if latest_entry is None:
+        return None
+
+    return latest_entry.get("arguments", {}).get("suggested_reply_type")
+
+
+def write_client_reply(user_settings, background_context=None):
+    if background_context is None:
+        background_context = load_latest_background_context()
+
+    suggested_reply_type = load_latest_suggested_reply_type()
+    if suggested_reply_type not in REPLY_TYPE_TO_MODEL:
+        print("Client reply generation failed: no valid suggested_reply_type found in llm_arguments.jsonl")
+        return None
+
+    target_model_name = REPLY_TYPE_TO_MODEL[suggested_reply_type].__name__
+
+    try:
+        response = client.chat.completions.create(
+            model="gemini/gemini-3.1-flash-lite-preview",
+            response_model=LeadReplyResponse,
+            max_retries=3,
+            temperature=0.2,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional freelance email response agent. "
+                        "Choose exactly one response schema based on the latest lead-analysis verdict. "
+                        "Use LeadAnalysisAccepted for Accept, LeadAnalysisRejected for Reject, "
+                        "and LeadAnalysisClarification for Clarify. "
+                        "Write a polished client-facing email and populate the chosen schema completely. "
+                        "Use [[brackets]] for values the freelancer must still confirm."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                    USER PREFERENCES:
+                    {user_settings}
+
+                    LATEST VERDICT:
+                    {suggested_reply_type}
+
+                    REQUIRED RESPONSE MODEL:
+                    {target_model_name}
+
+                    BACKGROUND CONTEXT:
+                    {background_context}
+                """,
+                },
+            ],
+        )
+
+        log_complete_response(response, response_model=LeadReplyResponse)
+        return response
+    except Exception as e:
+        print(f"Client reply generation failed: {e}")
+        return None
 
 
 def write_acceptance_lead(user_settings, background_context=None):
@@ -243,10 +342,8 @@ def write_acceptance_lead(user_settings, background_context=None):
             ],
         )
 
-        log_raw_response(response, response_model=LeadAnalysisAccepted)
+        log_complete_response(response, response_model=LeadAnalysisAccepted)
         return response
     except Exception as e:
         print(f"Acceptance email generation failed: {e}")
         return None
-
-
