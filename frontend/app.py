@@ -1,11 +1,20 @@
 import json
 import time
 import re
-
+import sys
+import os
 import streamlit as st
-
 from app_data import getData, init_profile, modifyData
-from description_formating import makeDescription
+from description_formating import getDescription
+
+# Add project root to Python path
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+
+from email_integration.email_to_json import save_email_as_json
+try:
+    from email_integration.email_to_json import save_email_as_json
+except ModuleNotFoundError:
+    from email_to_json import save_email_as_json
 
 #Declare Arrays of Expanders
 if "low" not in st.session_state:
@@ -19,7 +28,7 @@ if "high" not in st.session_state:
 
 #Expander Logic
 def createNewExpander(origin, name):
-    description = makeDescription()
+    description = getDescription()
     origin.append({
         "name": name,
         "description": description
@@ -31,7 +40,7 @@ def is_valid_email(email):
     return re.match(pattern, email)
 
 #Top
-col1, col2 = st.columns([7, 1])
+col1, col2 = st.columns([5, 1])
 sendButton = st.empty()
 
 with col1:
@@ -40,28 +49,16 @@ with col1:
 with col2:
     st.write("")
     st.write("")
-    if st.button("Send All"):
-        if len(st.session_state.low) != 0 or len(st.session_state.medium) != 0  or  len(st.session_state.high) != 0:
-            for i in range(len(st.session_state.low)):
-                st.session_state.low.pop()
-            for i in range(len(st.session_state.medium)):
-                st.session_state.medium.pop()
-            for i in range(len(st.session_state.high)):
-                st.session_state.high.pop()
-
-            sendButton.success("Sending!")
-            time.sleep(2)
-            sendButton.empty()
-        else:
-            sendButton.error("No Emails to Send...")
-            time.sleep(2)
-            sendButton.empty()
+    if st.button("Pull Emails"):
+        save_email_as_json()
+        sendButton.success("Done!")
+        sendButton.empty()
 
 
 
 init_profile()
 #Menu
-profile, low, medium, high = st.tabs(["Profile", "Low Match/Scam", "Medium Match/Clarification Needed", "High Match"])
+profile, low, medium, high = st.tabs(["Profile", "Low Match/Scam", "Clarification Needed", "High Match"])
 
 with profile:
     st.header("Profile")
@@ -72,11 +69,9 @@ with profile:
     with st.expander("Current Information"):
         st.write(f"**Email:** {data['email']}")
         st.write(f"**Website:** {data['website']}")
-        st.write(f"**Current Working Hours:** {data['start_time']} to {data['end_time']}")
+        st.write(f"**Ideal Working Hours:** {data['start_time']} to {data['end_time']}")
         st.write(f"**Ideal Wage:** {data['wage']}")
-        st.write(f"**Current Workload:** {data['workload']}")
-        st.write(f"**Strengths:** {data['strengths']}")
-        st.write(f"**Weaknesses:** {data['weaknesses']}")
+        st.write(f"**Tech Stack:** {data['tech']}")
 
 
     email = st.text_input(
@@ -104,25 +99,15 @@ with profile:
         step=0.5
     )
 
-    currentWorkLoad = st.text_input(
-        "Current workload",
-        value=st.session_state.currentWorkLoad
-    )
-
-    strengths = st.text_input(
-        "Please list your strengths",
-        value=st.session_state.strengths
-    )
-
-    weaknesses = st.text_input(
-        "Please list your weaknesses(if any)",
-        value=st.session_state.weaknesses
+    tech = st.text_input(
+        "Please list your tech stack",
+        value=st.session_state.techStack
     )
 
     if st.button("Confirm", key="profileButton"):
         confirmButton = st.empty()
         if is_valid_email(email):
-            modifyData(email, website, idealStartTime, idealEndTime, idealWage, currentWorkLoad, strengths, weaknesses)
+            modifyData(email, website, idealStartTime, idealEndTime, idealWage, tech)
             confirmButton.success("Saved!")
             time.sleep(2) # Wait 3 Seconds
             st.rerun()
@@ -135,8 +120,7 @@ with low:
 
     #Generate Test Expanders
     if st.button("low"):
-        for x in range(5):
-            createNewExpander(st.session_state.low, f"Void Paper_{x}")
+        createNewExpander(st.session_state.low, "Void Paper")
 
     if(len(st.session_state.low) == 0):
         st.write("No Low Match or Scam Likely Emails...")
@@ -146,6 +130,12 @@ with low:
 
         with st.expander(data["name"]):
             st.write(data["description"])
+
+            text = st.text_area(
+                "Email Response",
+                value="This is the default text",
+                height=200
+            )
 
             action = st.selectbox(
                 "Action",
@@ -166,8 +156,7 @@ with medium:
 
     #Generate Test Expanders
     if st.button("medium"):
-        for x in range(5):
-            createNewExpander(st.session_state.medium, f"Someone Shady_{x}")
+        createNewExpander(st.session_state.medium, "Someone Shady")
 
     if(len(st.session_state.medium) == 0):
         st.write("No Medium Match or Clarification Needed Emails...")
@@ -199,8 +188,7 @@ with high:
 
     #Generate Test Expanders
     if st.button("high"):
-        for x in range(5):
-            createNewExpander(st.session_state.high, f"Big Yahu_{x}")
+        createNewExpander(st.session_state.high, "Big Yahu")
 
     if(len(st.session_state.high) == 0):
         st.write("No High Match Emails...")
