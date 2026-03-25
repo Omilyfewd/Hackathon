@@ -21,7 +21,7 @@ class LeadAnalysis(BaseModel):
     budget_fit: int = Field(ge=1, le=10, description="Alignment with user's ideal wage.")
     scope_clarity: int = Field(ge=1, le=10, description="How well defined the task is.")
     timeline_reasonable: bool = Field(description="Is the deadline realistic?")
-    project_fit: int = Field(ge=1, le=10, description="How well the client's requests aligns with the user's strengths.")
+    project_fit: int = Field(ge=1, le=10, description="How well the client's requests aligns with the user's tech stack.")
     summary: str = Field(description="2-sentence neutral overview of the request.")
     suggested_reply_type: Literal["Reject", "Clarify", "Accept"] = Field(
         description="Options: 'Reject', 'Clarify', 'Accept'"

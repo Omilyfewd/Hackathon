@@ -20,11 +20,17 @@ def load_test_email() -> str:
 
 def load_user_settings() -> str:
     settings = json.loads(USER_SETTINGS_FILE.read_text(encoding="utf-8"))
+    personal = settings.get("user_personal", {})
+    technical = settings.get("user_technical", {})
+
     return (
-        f"Ideal wage: ${settings.get('ideal_wage', 'N/A')}/hr. "
-        f"Current workload: {settings.get('current_workload', 'N/A')}. "
-        f"Strengths: {settings.get('strengths', '')}. "
-        f"Weaknesses: {settings.get('weaknesses', '')}."
+        f"Email: {personal.get('email', 'N/A')}. "
+        f"Website: {personal.get('website', 'N/A')}. "
+        f"Current working hours: {personal.get('ideal_start', 'N/A')} to {personal.get('ideal_end', 'N/A')}. "
+        f"Ideal wage: ${personal.get('ideal_wage', 'N/A')}/hr. "
+        f"Tech stack: {personal.get('tech_stack', technical.get('strengths', 'N/A'))}. "
+        f"Strengths: {technical.get('strengths', 'N/A')}. "
+        f"Weaknesses: {technical.get('weaknesses', 'N/A')}."
     )
 
 

@@ -1,7 +1,10 @@
 {
-    "strengths": "Clear client communication, responsive web design, landing pages, small business websites, UI cleanup, bug fixing, API integration, and turning vague requirements into scoped deliverables.",
-    "weaknesses": "Avoid large enterprise platforms, rushed overnight deadlines, highly custom 3D animation, native mobile apps, blockchain projects, heavy DevOps work, and projects with unclear ownership or unrealistic budgets.",
+  "user_personal": {
+    "email": "[[alex@example.com]]",
+    "website": "[[https://www.alexrivera.dev]]",
+    "ideal_start": 9,
+    "ideal_end": 17,
     "ideal_wage": 100,
-    "current_workload": "Guitar music video, linear algebra hw",
-    "sender": ""
+    "tech_stack": "[[Responsive web design, frontend bug fixing, API integrations, React, Streamlit, Shopify, and turning vague requests into scoped deliverables]]"
+  }
 }

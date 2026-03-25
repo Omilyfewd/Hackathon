@@ -5,6 +5,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_log.json"
 DEFAULT_ARGUMENTS_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_arguments.jsonl"
+DEFAULT_EMAIL_DETAILS_FILE = PROJECT_ROOT / "logs_test_outputs" / "latest_email.json"
 
 
 def _load_json_object(file_path: Path):
@@ -18,18 +19,35 @@ def _load_json_object(file_path: Path):
     return json.loads(content)
 
 
-def extract_argument_responses(source_file=None, output_file=None):
-    try:
-        from llm_logic.lead_analyzer import LeadAnalysis
-    except ModuleNotFoundError:
-        from lead_analyzer import LeadAnalysis
+def _load_email_details(file_path: Path = DEFAULT_EMAIL_DETAILS_FILE):
+    latest_email = _load_json_object(file_path)
+    if not latest_email:
+        return None
+
+    return {
+        "sender": latest_email.get("sender"),
+        "subject": latest_email.get("subject"),
+        "date": latest_email.get("date"),
+        "body": latest_email.get("body"),
+    }
+
+
+def extract_argument_responses(source_file=None, output_file=None, response_model=None):
+    if response_model is None:
+        try:
+            from llm_logic.lead_analyzer import LeadAnalysis
+        except ModuleNotFoundError:
+            from lead_analyzer import LeadAnalysis
+
+        response_model = LeadAnalysis
 
     log_file = Path(source_file) if source_file else DEFAULT_LOG_FILE
     arguments_file = Path(output_file) if output_file else DEFAULT_ARGUMENTS_LOG_FILE
 
     arguments_file.parent.mkdir(parents=True, exist_ok=True)
-    field_order = list(LeadAnalysis.model_fields.keys())
+    field_order = list(response_model.model_fields.keys())
     entry = _load_json_object(log_file)
+    email_details = _load_email_details()
 
     if not entry:
         return
@@ -55,11 +73,12 @@ def extract_argument_responses(source_file=None, output_file=None):
                     "timestamp": entry.get("timestamp"),
                     "name": tool_call.get("function", {}).get("name"),
                     "arguments": normalized_arguments,
+                    "email_details": email_details,
                 }
                 output_handle.write(json.dumps(output_entry) + "\n")
 
 
-def log_raw_response(response, filename=None):
+def log_raw_response(response, filename=None, response_model=None):
     raw_data = response._raw_response.model_dump()
 
     log_entry = {
@@ -73,6 +92,6 @@ def log_raw_response(response, filename=None):
     with log_file.open("w", encoding="utf-8") as f:
         json.dump(log_entry, f, indent=2)
 
-    extract_argument_responses(source_file=log_file)
+    extract_argument_responses(source_file=log_file, response_model=response_model)
 
     print(f"--- Raw response saved to {log_file} ---")

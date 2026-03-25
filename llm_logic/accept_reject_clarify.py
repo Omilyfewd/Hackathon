@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import List
 
@@ -6,11 +7,17 @@ import litellm
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 
+try:
+    from llm_logic.logger import log_raw_response
+except ModuleNotFoundError:
+    from logger import log_raw_response
 
-class LeadAnalysisAccepted(BaseModel): #user will edit
-    queue_time: int = Field(ge=-1, description="Estimated time in days for the freelancer to start working on the "
-                                               "user's order due to current workload and working hours based on ideal"
-                                               " start time and end time.")
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+ARGUMENTS_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_arguments.jsonl"
+load_dotenv(PROJECT_ROOT / "keys_and_tokens" / ".env")
+
+
+class LeadAnalysisAccepted(BaseModel):  # user will edit
     deliverable_timeline: List[str] = Field(description="Break the project down into different phases, and provide a "
                                                         "specific date for the time of each "
                                                         "completion.")
@@ -31,6 +38,7 @@ class LeadAnalysisAccepted(BaseModel): #user will edit
         examples=[
         """
             Hi [[Jordan]],
+            
             I’m excited to officially get started on the website redesign for Apex Solutions! Following our discussion yesterday, I’ve outlined the project details below to ensure we are aligned on the path forward.
             
             Project Scope & Deliverables
@@ -91,3 +99,154 @@ class LeadAnalysisAccepted(BaseModel): #user will edit
             [[(555) 987-6543]]
         """]
     )
+
+
+class LeadAnalysisRejected(BaseModel):
+    rejection_category: str = Field(
+        description="The primary reason for rejection (e.g., 'Budget too low', 'Timeline impossible', 'Out of Scope', 'High Scam Risk', 'Capacity Full')."
+    )
+    internal_logic: str = Field(
+        description="A brief 1-sentence internal explanation of why this lead doesn't meet the freelancer's specific criteria."
+    )
+    fit_score: int = Field(
+        ge=0, le=5,
+        description="A low-range score (0-5) representing how far off this client was from the ideal profile."
+    )
+    alternative_resources: List[str] = Field(
+        description="Generic resources or platforms to suggest to the client (e.g., 'Upwork', 'Fiverr', 'a specialized agency') so the rejection remains helpful."
+    )
+    subject: str = Field(
+        description="A professional, neutral email subject line using [[brackets]] for values the freelancer must manually confirm.",
+        examples=["Inquiry Update: [[Project Name]] – [[Freelancer Name]]",
+                  "Regarding your request for [[Service Type]]"]
+    )
+    rejection_email_template: str = Field(
+        description="A polite rejection email draft using [[brackets]] for values the freelancer must manually confirm. "
+                    "The tone should be professional and firm but helpful.",
+        examples=[
+            """
+                Hi [[Jordan]],
+                
+                Thank you so much for reaching out and sharing the details regarding the [[Website Redesign]] for [[Apex Solutions]].
+                After reviewing the project scope and the requested timeline of [[one week]], I’ve determined that I won’t be able to take this on at this time. To ensure the highest quality of work for my clients, I only accept projects where the timeline allows for a full discovery and testing phase, which typically requires a minimum of [[four weeks]].
+                I would recommend looking into [[specialized WordPress agencies]] or platforms like [[Clutch.co]] to find a partner who might have the immediate bandwidth for a rapid turnaround.
+                I wish you the best of luck with the launch of [[Apex Solutions]]!
+
+                Best regards,
+    
+                [[Alex Rivera]]
+            """,
+            """
+                Hi [[Casey]],
+    
+                I appreciate you thinking of me for the [[Email Marketing Campaign]] at [[Luminary Labs]]. 
+                Based on the project requirements and the budget range of [[$200]] you mentioned, it looks like our current service packages aren't quite the right fit for this specific initiative. My minimum engagement for custom strategy and execution currently begins at [[$1,200]].
+                Because I want to make sure you get the best results for your current stage, I'd suggest checking out [[Upwork]] or [[the Shopify Expert Marketplace]], where you can often find talented specialists who work with smaller-scale project budgets.
+                Thank you again for the inquiry, and I hope the campaign is a great success!
+    
+                Best,
+    
+                [[Morgan Taylor]]
+            """]
+    )
+
+
+class LeadAnalysisClarification(BaseModel):
+    missing_information: List[str] = Field(
+        description="List of specific details missing from the inquiry (e.g., 'Budget', 'Technical Stack', 'Deadline')."
+    )
+    uncertainty_score: int = Field(
+        ge=1, le=10,
+        description="Score of 1-10 on how vague the request is. 10 is 'I have no idea what they want'."
+    )
+    clarification_priority: str = Field(
+        description="How urgent is this lead if the info is right? (High, Medium, Low)."
+    )
+    subject: str = Field(
+        description="A professional subject line using [[brackets]] for manual confirmation.",
+        examples=["Quick question regarding your [[Project Name]] inquiry",
+                  "Following up on your request for [[Service Type]]"]
+    )
+    clarification_email_template: str = Field(
+        description="A polite follow-up email asking for the missing details using [[brackets]].",
+        examples=[
+            """
+                Hi [[Jordan]],
+    
+                Thanks for reaching out about the [[Website Project]]! It sounds like an interesting initiative.
+    
+                To help me give you an accurate estimate and check my availability, could you clarify a few details? Specifically, I'd love to know more about:
+                - The ideal [[launch date]] you have in mind.
+                - The [[budget range]] allocated for this phase of the work.
+                - Any existing [[technical documentation or brand assets]] you already have ready.
+    
+                Once I have a better sense of the scope, I can let you know if I'm the right fit to help you move this forward.
+    
+                Best regards,
+    
+                [[Alex Rivera]]
+            """]
+    )
+
+
+
+client = instructor.from_litellm(litellm.completion)
+
+
+def load_latest_background_context():
+    if not ARGUMENTS_LOG_FILE.exists():
+        return "No prior lead analysis context available."
+
+    lines = ARGUMENTS_LOG_FILE.read_text(encoding="utf-8").splitlines()
+    for line in reversed(lines):
+        if not line.strip():
+            continue
+        try:
+            return json.dumps(json.loads(line), indent=2)
+        except json.JSONDecodeError:
+            return line
+
+    return "No prior lead analysis context available."
+
+
+def write_acceptance_lead(user_settings, background_context=None):
+    if background_context is None:
+        background_context = load_latest_background_context()
+
+    try:
+        response = client.chat.completions.create(
+            model="gemini/gemini-3.1-flash-lite-preview",
+            response_model=LeadAnalysisAccepted,
+            max_retries=3,
+            temperature=0.2,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a professional freelance client onboarding agent. "
+                        "Write a clear, confident acceptance email confirming that the freelancer "
+                        "has decided to take the project, summarize the work, propose logistics, "
+                        "and populate the structured response model accurately. "
+                        "Use [[brackets]] for values the freelancer must still confirm."
+                    ),
+                },
+                {
+                    "role": "user",
+                    "content": f"""
+                    USER PREFERENCES:
+                    {user_settings}
+
+                    BACKGROUND CONTEXT:
+                    {background_context}
+                """,
+                },
+            ],
+        )
+
+        log_raw_response(response, response_model=LeadAnalysisAccepted)
+        return response
+    except Exception as e:
+        print(f"Acceptance email generation failed: {e}")
+        return None
+
+
