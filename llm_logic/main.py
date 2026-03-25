@@ -37,7 +37,6 @@ if __name__ == "__main__":
     if result:
         print(f"Scam Risk: {result.scam_likelihood}%")
         print(f"Budget Score: {result.budget_fit}/10")
-        print(f"Red Flags: {', '.join(result.red_flags)}")
         print(f"Summary: {result.summary}")
 
     print(test_email)
