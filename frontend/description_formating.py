@@ -2,19 +2,21 @@ import os
 import json
 
 descriptionBase = """
-    [Verdict]
-    Scam Likelyhood: [BS]%
-    Budget Fit: [Money]/10
-    Scope Clarity: [Clear]/10
-    Project Fit: [Strong]/10
-    Reasonable Timeline: [YayNay]
-    Summary: [LLM]
+    Scam Likelyhood: [BS]% \n
+    Budget Fit: [Money]/10 \n
+    Scope Clarity: [Clear]/10 \n
+    Project Fit: [Strong]/10 \n
+    Reasonable Timeline: [YayNay] \n
+    Summary: [LLM] \n
 
     Original Email:
     
-    Subject: [idkman]
+    Subject: [idkman] \n
     [OG]
 """
+
+latest_email = None
+llm_logs = []
 
 def get_latest_analysis(llm_logs):
     latest = llm_logs[-1]
@@ -23,7 +25,7 @@ def get_latest_analysis(llm_logs):
     
     return json.loads(args_str)
 
-def makeDescription():
+def openFiles():
     # Open Files
     BASE_DIR = os.path.dirname(__file__)
 
@@ -40,11 +42,24 @@ def makeDescription():
 
 
     # Load llm_logs.jsonl (JSON Lines format)
-    llm_logs = []
     with open(llm_logs_path, "r") as f:
         for line in f:
-            llm_logs.append(json.loads(line))
+            line = line.strip()
+            if not line:  # skip empty lines
+                continue
+            try:
+                llm_logs.append(json.loads(line))
+            except json.JSONDecodeError as e:
+                print("Skipping bad line:", line)
+                print(e)
 
+def allExpanders():
+    listOfExpanders = []
+
+
+
+def getDescription():
+    openFiles()
     # Formating
     template = descriptionBase
 
@@ -62,3 +77,17 @@ def makeDescription():
     template = template.replace("[LLM]", analysis["summary"])
 
     return template
+
+def getVerdict():
+    verdict = llm_logs["suggested_reply_type"]
+    return verdict
+
+def getReturnEmail():
+    return "test"
+
+def consolidate():
+    expander = []
+    expander.append(getVerdict())
+    expander.append(getDescription())
+    expander.append(getReturnEmail())
+    return expander
