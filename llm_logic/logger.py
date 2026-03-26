@@ -7,7 +7,6 @@ from typing import Union, get_args, get_origin
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_LOG_FILE = PROJECT_ROOT / "logs_test_outputs" / "llm_log.json"
 DEFAULT_COMPLETE_RESPONSE_FILE = PROJECT_ROOT / "logs_test_outputs" / "complete_response.jsonl"
-DEFAULT_EMAIL_DETAILS_FILE = PROJECT_ROOT / "logs_test_outputs" / "latest_email.json"
 
 
 def _load_json_object(file_path: Path):
@@ -19,19 +18,6 @@ def _load_json_object(file_path: Path):
         return None
 
     return json.loads(content)
-
-
-def _load_email_details(file_path: Path = DEFAULT_EMAIL_DETAILS_FILE):
-    latest_email = _load_json_object(file_path)
-    if not latest_email:
-        return None
-
-    return {
-        "sender": latest_email.get("sender"),
-        "subject": latest_email.get("subject"),
-        "date": latest_email.get("date"),
-        "body": latest_email.get("body"),
-    }
 
 
 def _get_response_model_map(response_model):
@@ -60,12 +46,13 @@ def _get_response_model_map(response_model):
     }
 
 
-def _build_response_entries(entry, response_model=None):
+def _build_response_entries(entry, response_model=None, email_details=None):
     response_model_map = _get_response_model_map(response_model)
-    email_details = _load_email_details()
 
     if not entry:
         return []
+
+    resolved_email_details = email_details if email_details is not None else entry.get("email_details")
 
     raw_response = entry.get("raw_response", {})
     parsed_response = raw_response.get("parsed_response")
@@ -91,7 +78,7 @@ def _build_response_entries(entry, response_model=None):
                 "timestamp": entry.get("timestamp"),
                 "name": response_type,
                 "arguments": normalized_arguments,
-                "email_details": email_details,
+                "email_details": resolved_email_details,
             }
         ]
 
@@ -127,7 +114,7 @@ def _build_response_entries(entry, response_model=None):
                     "timestamp": entry.get("timestamp"),
                     "name": function_name,
                     "arguments": normalized_arguments,
-                    "email_details": email_details,
+                    "email_details": resolved_email_details,
                 }
             )
 
@@ -157,7 +144,7 @@ def load_latest_logged_response(source_file=None, response_model=None):
     return response_entries[-1]
 
 
-def _write_raw_log(response, filename=None):
+def _write_raw_log(response, filename=None, email_details=None):
     if hasattr(response, "_raw_response"):
         raw_data = response._raw_response.model_dump()
     elif hasattr(response, "model_dump"):
@@ -173,7 +160,8 @@ def _write_raw_log(response, filename=None):
 
     log_entry = {
         "timestamp": datetime.now().isoformat(),
-        "raw_response": raw_data
+        "raw_response": raw_data,
+        "email_details": email_details,
     }
 
     log_file = Path(filename) if filename else DEFAULT_LOG_FILE
@@ -185,8 +173,8 @@ def _write_raw_log(response, filename=None):
     return log_entry, log_file
 
 
-def log_raw_response(response, filename=None, response_model=None):
-    _, log_file = _write_raw_log(response, filename=filename)
+def log_raw_response(response, filename=None, response_model=None, email_details=None):
+    _, log_file = _write_raw_log(response, filename=filename, email_details=email_details)
 
     print(f"--- Raw response saved to {log_file} ---")
 
@@ -198,13 +186,29 @@ def log_complete_response(
     analysis_source_file=None,
     analysis_response_model=None,
     complete_response_file=None,
+    email_details=None,
+    lead_analysis_entry=None,
 ):
-    latest_analysis_entry = load_latest_logged_response(
-        source_file=analysis_source_file,
-        response_model=analysis_response_model,
+    latest_analysis_entry = lead_analysis_entry
+    if latest_analysis_entry is None:
+        latest_analysis_entry = load_latest_logged_response(
+            source_file=analysis_source_file,
+            response_model=analysis_response_model,
+        )
+
+    if latest_analysis_entry is not None:
+        latest_analysis_entry = {
+            key: value
+            for key, value in latest_analysis_entry.items()
+            if key != "email_details"
+        }
+
+    log_entry, log_file = _write_raw_log(response, filename=filename, email_details=email_details)
+    response_entries = _build_response_entries(
+        log_entry,
+        response_model=response_model,
+        email_details=email_details,
     )
-    log_entry, log_file = _write_raw_log(response, filename=filename)
-    response_entries = _build_response_entries(log_entry, response_model=response_model)
     output_file = Path(complete_response_file) if complete_response_file else DEFAULT_COMPLETE_RESPONSE_FILE
 
     if not response_entries:

@@ -54,7 +54,7 @@ class LeadAnalysis(BaseModel):
 client = instructor.from_litellm(litellm.completion)
 
 
-def analyze_lead(email_content, user_preferences):
+def analyze_lead(email_content, user_preferences, email_details=None):
     try:
         response = client.chat.completions.create(
             model="gemini/gemini-3.1-flash-lite-preview",
@@ -79,7 +79,7 @@ def analyze_lead(email_content, user_preferences):
             ],
         )
 
-        log_raw_response(response)
+        log_raw_response(response, email_details=email_details)
         return response
     except Exception as e:
         print(f"Analysis failed: {e}")

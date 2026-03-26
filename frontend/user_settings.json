@@ -1,7 +1,8 @@
 {
   "user_personal": {
-    "email": "[[alex@example.com]]",
-    "website": "[[https://www.alexrivera.dev]]",
+    "name": "Alex Rivera",
+    "email": "alex@example.com",
+    "website": "https://www.alexrivera.dev",
     "ideal_start": 9,
     "ideal_end": 17,
     "ideal_wage": 100,

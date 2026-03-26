@@ -240,11 +240,25 @@ def load_latest_suggested_reply_type():
     return latest_entry.get("arguments", {}).get("suggested_reply_type")
 
 
-def write_client_reply(user_settings, background_context=None):
+def write_client_reply(
+    user_settings,
+    background_context=None,
+    suggested_reply_type=None,
+    lead_analysis_entry=None,
+    email_details=None,
+):
+    if lead_analysis_entry is not None:
+        if background_context is None:
+            background_context = json.dumps(lead_analysis_entry, indent=2)
+        if suggested_reply_type is None:
+            suggested_reply_type = lead_analysis_entry.get("arguments", {}).get("suggested_reply_type")
+
     if background_context is None:
         background_context = load_latest_background_context()
 
-    suggested_reply_type = load_latest_suggested_reply_type()
+    if suggested_reply_type is None:
+        suggested_reply_type = load_latest_suggested_reply_type()
+
     if suggested_reply_type not in REPLY_TYPE_TO_MODEL:
         print("Client reply generation failed: no valid suggested_reply_type found in llm_log.json")
         return None
@@ -288,7 +302,12 @@ def write_client_reply(user_settings, background_context=None):
             ],
         )
 
-        log_complete_response(response, response_model=LeadReplyResponse)
+        log_complete_response(
+            response,
+            response_model=LeadReplyResponse,
+            email_details=email_details,
+            lead_analysis_entry=lead_analysis_entry,
+        )
         return response
     except Exception as e:
         print(f"Client reply generation failed: {e}")

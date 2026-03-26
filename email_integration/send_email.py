@@ -29,7 +29,7 @@ def send_test_email():
     gmail.send_message(
         to="voidpaper1234@gmail.com",
         sender="bigyahufromohio@gmail.com",
-        subject="Test Email",
+        subject="Service Request",
         msg_html=html_content,
         msg_plain=plain_text
     )
