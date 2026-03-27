@@ -95,12 +95,8 @@ def consolidate():
         description = build_description(email, analysis_dict)
 
         # Generate client reply (for return email)
-        lead_analysis = email.get("lead_analysis", {})
-        return_email = lead_analysis.get("draft_reply")
-        if not return_email:
-            # fallback
-            arguments = email.get("arguments", {})
-            return_email = arguments.get("draft_reply", "Missing Recommended Response")
+
+        return_email = analysis_dict.get("draft_reply", "Missing Recommended Response")
 
         sender_email = email.get("sender", "unknown_sender")
         # Append as [verdict, description, return_email]
