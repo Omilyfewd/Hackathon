@@ -11,10 +11,13 @@ from description_formating import consolidate
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from email_integration.email_to_json import save_email_as_json
+from email_integration.send_email import send_test_email
 try:
     from email_integration.email_to_json import save_email_as_json
+    from email_integration.send_email import send_test_email
 except ModuleNotFoundError:
     from email_to_json import save_email_as_json
+    from send_email import send_test_email
 
 #Declare Arrays of Expanders
 if "low" not in st.session_state:
@@ -170,29 +173,53 @@ with low:
                     st.session_state.high.append(item)
                 elif action == "Send":
                     # 1. Setup the relative path
-                    # This gets the folder containing your current script (frontend)
                     current_dir = os.path.dirname(os.path.abspath(__file__))
-
-                    # This moves up to 'Hackathon' and then into 'logs_test_output'
                     target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
-
-                    # 2. Ensure the folder exists
                     os.makedirs(target_dir, exist_ok=True)
 
-                    # 3. Create the file path (using .json for data)
-                    file_path = os.path.join(target_dir, "example_email.json")
+                    # 2. Define the HTML file path
+                    file_path = os.path.join(target_dir, "example_email.html")
 
-                    # 4. Prepare the data
-                    output_data = {
-                        "email_id": data.get("id"),
-                        "recipient": data.get("name"),
-                        "subject": "Proposal Denied",
-                        "final_reply": reply,  # This is the value from your st.text_area
-                    }
+                    # 3. Create the HTML content with some basic styling
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }}
+                            .header {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }}
+                            .label {{ font-weight: bold; color: #555; }}
+                            .content-box {{ background: #f9f9f9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50; white-space: pre-wrap; }}
+                            .meta {{ font-size: 0.9em; color: #888; margin-top: 20px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2>Email Response Log</h2>
+                            <p><span class="label">Recipient:</span> {data.get('name', 'N/A')}</p>
+                            <p><span class="label">Sender:</span> {data.get('sender_email', 'N/A')}</p>
+                        </div>
 
-                    # 5. Save the file
-                    with open(file_path, "w") as f:
-                        json.dump(output_data, f, indent=4)
+                        <div>
+                            <p class="label">Original Analysis Description:</p>
+                            <p>{data.get('description', 'No description provided.')}</p>
+                        </div>
+
+                        <div>
+                            <p class="label">Final Sent Reply:</p>
+                            <div class="content-box">{reply}</div>
+                        </div>
+                    </body>
+                    </html>
+                    """
+
+                    # 4. Write the file
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(html_content)
+
+                    st.success(f"HTML Log created at: {os.path.normpath(file_path)}")
+
+                    # send_test_email()
 
                     st.success(f"Log saved to: {os.path.normpath(file_path)}")
                 st.rerun()
@@ -234,29 +261,53 @@ with medium:
                     st.session_state.high.append(item)
                 elif action == "Send":
                     # 1. Setup the relative path
-                    # This gets the folder containing your current script (frontend)
                     current_dir = os.path.dirname(os.path.abspath(__file__))
-
-                    # This moves up to 'Hackathon' and then into 'logs_test_output'
                     target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
-
-                    # 2. Ensure the folder exists
                     os.makedirs(target_dir, exist_ok=True)
 
-                    # 3. Create the file path (using .json for data)
-                    file_path = os.path.join(target_dir, "example_email.json")
+                    # 2. Define the HTML file path
+                    file_path = os.path.join(target_dir, "example_email.html")
 
-                    # 4. Prepare the data
-                    output_data = {
-                        "email_id": data.get("id"),
-                        "recipient": data.get("name"),
-                        "subject": "Follow Up for Clarification",
-                        "final_reply": reply,  # This is the value from your st.text_area
-                    }
+                    # 3. Create the HTML content with some basic styling
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }}
+                            .header {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }}
+                            .label {{ font-weight: bold; color: #555; }}
+                            .content-box {{ background: #f9f9f9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50; white-space: pre-wrap; }}
+                            .meta {{ font-size: 0.9em; color: #888; margin-top: 20px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2>Email Response Log</h2>
+                            <p><span class="label">Recipient:</span> {data.get('name', 'N/A')}</p>
+                            <p><span class="label">Sender:</span> {data.get('sender_email', 'N/A')}</p>
+                        </div>
 
-                    # 5. Save the file
-                    with open(file_path, "w") as f:
-                        json.dump(output_data, f, indent=4)
+                        <div>
+                            <p class="label">Original Analysis Description:</p>
+                            <p>{data.get('description', 'No description provided.')}</p>
+                        </div>
+
+                        <div>
+                            <p class="label">Final Sent Reply:</p>
+                            <div class="content-box">{reply}</div>
+                        </div>
+                    </body>
+                    </html>
+                    """
+
+                    # 4. Write the file
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(html_content)
+
+                    st.success(f"HTML Log created at: {os.path.normpath(file_path)}")
+
+                    send_test_email()
 
                     st.success(f"Log saved to: {os.path.normpath(file_path)}")
 
@@ -297,29 +348,53 @@ with high:
                     st.session_state.low.append(item)
                 elif action == "Send":
                     # 1. Setup the relative path
-                    # This gets the folder containing your current script (frontend)
                     current_dir = os.path.dirname(os.path.abspath(__file__))
-
-                    # This moves up to 'Hackathon' and then into 'logs_test_output'
                     target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
-
-                    # 2. Ensure the folder exists
                     os.makedirs(target_dir, exist_ok=True)
 
-                    # 3. Create the file path (using .json for data)
-                    file_path = os.path.join(target_dir, "example_email.json")
+                    # 2. Define the HTML file path
+                    file_path = os.path.join(target_dir, "example_email.html")
 
-                    # 4. Prepare the data
-                    output_data = {
-                        "email_id": data.get("id"),
-                        "recipient": data.get("name"),
-                        "subject": "Proposal Accepted",
-                        "final_reply": reply,  # This is the value from your st.text_area
-                    }
+                    # 3. Create the HTML content with some basic styling
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html>
+                    <head>
+                        <style>
+                            body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }}
+                            .header {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }}
+                            .label {{ font-weight: bold; color: #555; }}
+                            .content-box {{ background: #f9f9f9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50; white-space: pre-wrap; }}
+                            .meta {{ font-size: 0.9em; color: #888; margin-top: 20px; }}
+                        </style>
+                    </head>
+                    <body>
+                        <div class="header">
+                            <h2>Email Response Log</h2>
+                            <p><span class="label">Recipient:</span> {data.get('name', 'N/A')}</p>
+                            <p><span class="label">Sender:</span> {data.get('sender_email', 'N/A')}</p>
+                        </div>
 
-                    # 5. Save the file
-                    with open(file_path, "w") as f:
-                        json.dump(output_data, f, indent=4)
+                        <div>
+                            <p class="label">Original Analysis Description:</p>
+                            <p>{data.get('description', 'No description provided.')}</p>
+                        </div>
+
+                        <div>
+                            <p class="label">Final Sent Reply:</p>
+                            <div class="content-box">{reply}</div>
+                        </div>
+                    </body>
+                    </html>
+                    """
+
+                    # 4. Write the file
+                    with open(file_path, "w", encoding="utf-8") as f:
+                        f.write(html_content)
+
+                    st.success(f"HTML Log created at: {os.path.normpath(file_path)}")
+
+                    send_test_email()
 
                     st.success(f"Log saved to: {os.path.normpath(file_path)}")
                 st.rerun()
