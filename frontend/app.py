@@ -168,7 +168,33 @@ with low:
 
                 if action == "Move to High Match":
                     st.session_state.high.append(item)
+                elif action == "Send":
+                    # 1. Setup the relative path
+                    # This gets the folder containing your current script (frontend)
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
 
+                    # This moves up to 'Hackathon' and then into 'logs_test_output'
+                    target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
+
+                    # 2. Ensure the folder exists
+                    os.makedirs(target_dir, exist_ok=True)
+
+                    # 3. Create the file path (using .json for data)
+                    file_path = os.path.join(target_dir, "example_email.json")
+
+                    # 4. Prepare the data
+                    output_data = {
+                        "email_id": data.get("id"),
+                        "recipient": data.get("name"),
+                        "subject": "Proposal Denied",
+                        "final_reply": reply,  # This is the value from your st.text_area
+                    }
+
+                    # 5. Save the file
+                    with open(file_path, "w") as f:
+                        json.dump(output_data, f, indent=4)
+
+                    st.success(f"Log saved to: {os.path.normpath(file_path)}")
                 st.rerun()
 
 with medium:
@@ -206,6 +232,33 @@ with medium:
                     st.session_state.low.append(item)
                 elif action == "Move to High Match":
                     st.session_state.high.append(item)
+                elif action == "Send":
+                    # 1. Setup the relative path
+                    # This gets the folder containing your current script (frontend)
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+                    # This moves up to 'Hackathon' and then into 'logs_test_output'
+                    target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
+
+                    # 2. Ensure the folder exists
+                    os.makedirs(target_dir, exist_ok=True)
+
+                    # 3. Create the file path (using .json for data)
+                    file_path = os.path.join(target_dir, "example_email.json")
+
+                    # 4. Prepare the data
+                    output_data = {
+                        "email_id": data.get("id"),
+                        "recipient": data.get("name"),
+                        "subject": "Follow Up for Clarification",
+                        "final_reply": reply,  # This is the value from your st.text_area
+                    }
+
+                    # 5. Save the file
+                    with open(file_path, "w") as f:
+                        json.dump(output_data, f, indent=4)
+
+                    st.success(f"Log saved to: {os.path.normpath(file_path)}")
 
                 st.rerun()
 
@@ -242,4 +295,31 @@ with high:
 
                 if action == "Move to Low Match/Scam":
                     st.session_state.low.append(item)
+                elif action == "Send":
+                    # 1. Setup the relative path
+                    # This gets the folder containing your current script (frontend)
+                    current_dir = os.path.dirname(os.path.abspath(__file__))
+
+                    # This moves up to 'Hackathon' and then into 'logs_test_output'
+                    target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
+
+                    # 2. Ensure the folder exists
+                    os.makedirs(target_dir, exist_ok=True)
+
+                    # 3. Create the file path (using .json for data)
+                    file_path = os.path.join(target_dir, "example_email.json")
+
+                    # 4. Prepare the data
+                    output_data = {
+                        "email_id": data.get("id"),
+                        "recipient": data.get("name"),
+                        "subject": "Proposal Accepted",
+                        "final_reply": reply,  # This is the value from your st.text_area
+                    }
+
+                    # 5. Save the file
+                    with open(file_path, "w") as f:
+                        json.dump(output_data, f, indent=4)
+
+                    st.success(f"Log saved to: {os.path.normpath(file_path)}")
                 st.rerun()
