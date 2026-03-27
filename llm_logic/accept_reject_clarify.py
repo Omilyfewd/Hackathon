@@ -1,10 +1,11 @@
 import json
+import os
 from pathlib import Path
 from typing import List, Literal, Union
 
 import instructor
-import litellm
 from dotenv import load_dotenv
+from openai import OpenAI
 from pydantic import BaseModel, Field
 
 try:
@@ -210,7 +211,10 @@ REPLY_TYPE_TO_MODEL = {
 }
 
 
-client = instructor.from_litellm(litellm.completion)
+client = instructor.from_openai(OpenAI(
+    base_url=os.getenv("FEATHERLESS_API_BASE", "https://api.featherless.ai/v1"),
+    api_key=os.getenv("FEATHERLESS_API_KEY")
+))
 
 
 def load_latest_analysis_entry():
@@ -267,7 +271,7 @@ def write_client_reply(
 
     try:
         response = client.chat.completions.create(
-            model="gemini/gemini-3.1-flash-lite-preview",
+            model="meta-llama/Meta-Llama-3-8B-Instruct",
             response_model=LeadReplyResponse,
             max_retries=3,
             temperature=0.2,

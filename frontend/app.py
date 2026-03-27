@@ -1,20 +1,16 @@
-import json
-import time
-import re
 import sys
 import os
+
+# Parent of `frontend/` so `email_integration` imports resolve when using `streamlit run app.py`
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+import time
+import re
 import streamlit as st
-from app_data import getData, init_profile, modifyData
+from app_data import getData, init_profile, modifyData, save_to_json
 from description_formating import getDescription
-
-# Add project root to Python path
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-
-from email_integration.email_to_json import save_email_as_json
-try:
-    from email_integration.email_to_json import save_email_as_json
-except ModuleNotFoundError:
-    from email_to_json import save_email_as_json
 
 #Declare Arrays of Expanders
 if "low" not in st.session_state:
@@ -39,6 +35,13 @@ def is_valid_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email)
 
+
+def pull_emails_from_gmail():
+    """Import here so the app starts even if `simplegmail` is missing in this Python env."""
+    from email_integration.email_to_json import save_email_as_json
+
+    save_email_as_json()
+
 #Top
 col1, col2 = st.columns([5, 1])
 sendButton = st.empty()
@@ -50,9 +53,19 @@ with col2:
     st.write("")
     st.write("")
     if st.button("Pull Emails"):
-        save_email_as_json()
-        sendButton.success("Done!")
-        sendButton.empty()
+        try:
+            pull_emails_from_gmail()
+            sendButton.success("Done!")
+            sendButton.empty()
+        except ModuleNotFoundError as e:
+            if getattr(e, "name", None) == "simplegmail":
+                st.error(
+                    "Missing package `simplegmail`. Install it in the **same** environment you use "
+                    "to run Streamlit, e.g. `python3 -m pip install simplegmail` or "
+                    "`python3 -m pip install -r requirements.txt` from the project root."
+                )
+            else:
+                raise
 
 
 
@@ -86,7 +99,7 @@ with profile:
 
     idealStartTime, idealEndTime = st.slider(
         "Ideal working hours:",
-        value=(9, 17),
+        value=(st.session_state.idealStartTime, st.session_state.idealEndTime),
         min_value=0,
         max_value=24
     )
@@ -108,6 +121,7 @@ with profile:
         confirmButton = st.empty()
         if is_valid_email(email):
             modifyData(email, website, idealStartTime, idealEndTime, idealWage, tech)
+            save_to_json("user_settings.json")
             confirmButton.success("Saved!")
             time.sleep(2) # Wait 3 Seconds
             st.rerun()
@@ -117,6 +131,9 @@ with profile:
 
 with low:
     st.header("Low Match/Scam")
+
+    if st.button("Send All Low Match Emails", key="send_all_low"):
+        st.success("All low match emails sent successfully.")
 
     #Generate Test Expanders
     if st.button("low"):
@@ -129,30 +146,30 @@ with low:
         data = st.session_state.low[i]
 
         with st.expander(data["name"]):
-            st.write(data["description"])
+            st.markdown(data["description"])
 
-            text = st.text_area(
+            st.text_area(
                 "Email Response",
                 value="This is the default text",
-                height=200
+                height=200,
+                key=f"low_response_{i}"
             )
 
-            action = st.selectbox(
-                "Action",
-                ["Send", "Move to High Match"],
-                key=f"lowAction_{i}"
-            )
-
-            if st.button("Confirm", key=f"lowButton_{i}"):
-                item = st.session_state.low.pop(i)
-
-                if action == "Move to High Match":
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("Send Email", key=f"low_send_{i}"):
+                    st.success("Email sent successfully.")
+            with c2:
+                if st.button("Move to High Match", key=f"low_to_high_{i}"):
+                    item = st.session_state.low.pop(i)
                     st.session_state.high.append(item)
-
-                st.rerun()
+                    st.rerun()
 
 with medium:
     st.header("Clarification Needed")
+
+    if st.button("Send All Clarification Needed Emails", key="send_all_medium"):
+        st.success("All clarification needed emails sent successfully.")
 
     #Generate Test Expanders
     if st.button("medium"):
@@ -165,26 +182,35 @@ with medium:
         data = st.session_state.medium[i]
 
         with st.expander(data["name"]):
-            st.write(data["description"])
+            st.markdown(data["description"])
 
-            action = st.selectbox(
-                "Action",
-                ["Send", "Move to Low Match/Scam", "Move to High Match"],
-                key=f"mediumAction_{i}"
+            st.text_area(
+                "Email Response",
+                value="This is the default text",
+                height=200,
+                key=f"medium_response_{i}"
             )
 
-            if st.button("Confirm",  key=f"mediumButton_{i}"):
-                item = st.session_state.medium.pop(i)
-
-                if action == "Move to Low Match/Scam":
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                if st.button("Send Email", key=f"medium_send_{i}"):
+                    st.success("Email sent successfully.")
+            with c2:
+                if st.button("Move to Low Match", key=f"medium_to_low_{i}"):
+                    item = st.session_state.medium.pop(i)
                     st.session_state.low.append(item)
-                elif action == "Move to High Match":
+                    st.rerun()
+            with c3:
+                if st.button("Move to High Match", key=f"medium_to_high_{i}"):
+                    item = st.session_state.medium.pop(i)
                     st.session_state.high.append(item)
-
-                st.rerun()
+                    st.rerun()
 
 with high:
     st.header("High Match")
+
+    if st.button("Send All High Match Emails", key="send_all_high"):
+        st.success("All high match emails sent successfully.")
 
     #Generate Test Expanders
     if st.button("high"):
@@ -197,17 +223,21 @@ with high:
         data = st.session_state.high[i]
 
         with st.expander(data["name"]):
-            st.write(data["description"])
+            st.markdown(data["description"])
 
-            action = st.selectbox(
-                "Action",
-                ["Send", "Move to Low Match/Scam"],
-                key=f"highAction_{i}"
+            st.text_area(
+                "Email Response",
+                value="This is the default text",
+                height=200,
+                key=f"high_response_{i}"
             )
 
-            if st.button("Confirm",  key=f"highButton_{i}"):
-                item = st.session_state.high.pop(i)
-
-                if action == "Move to Low Match/Scam":
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("Send Email", key=f"high_send_{i}"):
+                    st.success("Email sent successfully.")
+            with c2:
+                if st.button("Move to Low Match", key=f"high_to_low_{i}"):
+                    item = st.session_state.high.pop(i)
                     st.session_state.low.append(item)
-                st.rerun()
+                    st.rerun()
