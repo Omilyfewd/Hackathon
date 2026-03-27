@@ -1,93 +1,119 @@
 import os
 import json
+from pathlib import Path
 
+
+
+# Attempt proper imports from llm_logic
+try:
+    from llm_logic.main import load_test_emails, load_user_settings
+    from llm_logic.lead_analyzer import analyze_lead
+    from llm_logic.accept_reject_clarify import (
+        LeadAnalysisAccepted,
+        LeadAnalysisClarification,
+        LeadAnalysisRejected,
+        write_client_reply,
+    )
+except ModuleNotFoundError:
+    import sys
+    sys.path.append(str(Path(__file__).resolve().parents[1]))  # add project root
+    from llm_logic.main import load_test_emails, load_user_settings
+    from llm_logic.lead_analyzer import analyze_lead
+    from llm_logic.accept_reject_clarify import (
+        LeadAnalysisAccepted,
+        LeadAnalysisClarification,
+        LeadAnalysisRejected,
+        write_client_reply,
+    )
+
+# Base template for the description
 descriptionBase = """
-    Scam Likelyhood: [BS]% \n
-    Budget Fit: [Money]/10 \n
-    Scope Clarity: [Clear]/10 \n
-    Project Fit: [Strong]/10 \n
-    Reasonable Timeline: [YayNay] \n
-    Summary: [LLM] \n
+Scam Likelihood: [BS]% \n
+Budget Fit: [Money]/10 \n
+Scope Clarity: [Clear]/10 \n
+Project Fit: [Strong]/10 \n
+Reasonable Timeline: [YayNay] \n
+Summary: [LLM] 
 
-    Original Email:
-    
-    Subject: [idkman] \n
-    [OG]
+Original Email:
+
+Subject: [idkman] \n
+[OG]
 """
 
-latest_email = None
-llm_logs = []
-
-def get_latest_analysis(llm_logs):
-    latest = llm_logs[-1]
-    
-    args_str = latest["raw_response"]["choices"][0]["message"]["tool_calls"][0]["function"]["arguments"]
-    
-    return json.loads(args_str)
-
-def openFiles():
-    # Open Files
-    BASE_DIR = os.path.dirname(__file__)
-
-    # Go up one level -> then into logs_test_outputs
-    logs_path = os.path.join(BASE_DIR, "..", "logs_test_outputs")
-
-    latest_email_path = os.path.join(logs_path, "latest_email.json")
-    llm_logs_path = os.path.join(logs_path, "llm_logs.jsonl")
-
-
-    # Load latest_email.json (normal JSON)
-    with open(latest_email_path, "r") as f:
-        latest_email = json.load(f)
-
-
-    # Load llm_logs.jsonl (JSON Lines format)
-    with open(llm_logs_path, "r") as f:
-        for line in f:
-            line = line.strip()
-            if not line:  # skip empty lines
-                continue
-            try:
-                llm_logs.append(json.loads(line))
-            except json.JSONDecodeError as e:
-                print("Skipping bad line:", line)
-                print(e)
-
-def allExpanders():
-    listOfExpanders = []
-
-
-
-def getDescription():
-    openFiles()
-    # Formating
+def build_description(email, analysis):
+    """
+    Replace placeholders in descriptionBase with actual email and analysis info.
+    """
     template = descriptionBase
+    template = template.replace("[idkman]", email.get("subject", "N/A"))
+    template = template.replace("[OG]", email.get("body", "N/A"))
 
-    # Email
-    template = template.replace("[idkman]", latest_email["subject"])
-    template = template.replace("[OG]", latest_email["body"])
-
-    #LLM Information
-    analysis = get_latest_analysis(llm_logs)
-
-    template = template.replace("[BS]", str(analysis["scam_likelihood"]))
-    template = template.replace("[Money]", str(analysis["budget_fit"]))
-    template = template.replace("[Clear]", str(analysis["scope_clarity"]))
-    template = template.replace("[YayNay]", "Yes" if analysis["timeline_reasonable"] else "No")
-    template = template.replace("[LLM]", analysis["summary"])
+    template = template.replace("[BS]", str(analysis.get("scam_likelihood", "N/A")))
+    template = template.replace("[Money]", str(analysis.get("budget_fit", "N/A")))
+    template = template.replace("[Clear]", str(analysis.get("scope_clarity", "N/A")))
+    template = template.replace("[Strong]", str(analysis.get("project_fit", "N/A")))
+    template = template.replace("[YayNay]", "Yes" if analysis.get("timeline_reasonable") else "No")
+    template = template.replace("[LLM]", analysis.get("summary", "N/A"))
 
     return template
 
-def getVerdict():
-    verdict = llm_logs["suggested_reply_type"]
-    return verdict
+# Extract the suggested reply type from analysis dict
+def get_verdict(analysis):
+    return analysis.get("suggested_reply_type", "UNKNOWN")
 
-def getReturnEmail():
-    return "test"
+# Extract email body from the client reply object (LLM output)
+def get_return_email(client_reply):
+    if client_reply:
+        if hasattr(client_reply, "Accept"):
+            return client_reply.order_confirmation_template
+        elif hasattr(client_reply, "Reject"):
+            return client_reply.rejection_email_template
+        elif hasattr(client_reply, "Clarify"):
+            return client_reply.clarification_email_template
+    return "No reply generated"
 
+# Main function: returns an array of arrays [verdict, description, return_email]
 def consolidate():
-    expander = []
-    expander.append(getVerdict())
-    expander.append(getDescription())
-    expander.append(getReturnEmail())
-    return expander
+    unread_emails = load_test_emails()
+    my_settings = load_user_settings()
+    results = []
+
+    for email in unread_emails:
+        # Build email text for analysis
+        email_text = f"Subject: {email.get('subject', '')}\nBody: {email.get('body', '')}"
+
+        # Run LLM analysis
+        lead_analysis = analyze_lead(email_text, my_settings, email_details=email)
+        if not lead_analysis:
+            continue
+
+        analysis_dict = lead_analysis.model_dump()  # convert LLM object to dict
+
+        # Extract verdict & description
+        verdict = get_verdict(analysis_dict)
+        description = build_description(email, analysis_dict)
+
+        # Generate client reply (for return email)
+        lead_analysis = email.get("lead_analysis", {})
+        return_email = lead_analysis.get("draft_reply")
+        if not return_email:
+            # fallback
+            arguments = email.get("arguments", {})
+            return_email = arguments.get("draft_reply", "Missing Recommended Response")
+
+        sender_email = email.get("sender", "unknown_sender")
+        # Append as [verdict, description, return_email]
+        results.append([verdict, description, return_email, sender_email])
+
+    return results
+
+if __name__ == "__main__":
+    final_array = consolidate()
+    print(f"Processed {len(final_array)} emails.")
+    for row in final_array:
+        print("----")
+        print("Verdict:", row[0])
+        print("Sender: ", row[3])
+        print("Return Email:", row[2])
+        print("Description:\n", row[1])

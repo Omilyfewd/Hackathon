@@ -5,7 +5,7 @@ import sys
 import os
 import streamlit as st
 from app_data import getData, init_profile, modifyData
-from description_formating import getDescription
+from description_formating import consolidate
 
 # Add project root to Python path
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
@@ -25,14 +25,33 @@ if "high" not in st.session_state:
     st.session_state.high = []
 
 #Functions
+if 'index' not in st.session_state:
+    index = 0
+
+if 'mapIndexToTextArea' not in st.session_state:
+    st.session_state.mapIndexToTextArea = {}
+
+
+def makeNewExpanders():
+    final_array = consolidate()
+    for row in final_array:
+        if row[0] == "Reject":
+            createNewExpander(st.session_state.low, row[3], row[1], row[2])
+        elif row[0] == "Clarify":
+            createNewExpander(st.session_state.medium, row[3], row[1], row[2])
+        elif row[0] == "Accept":
+            createNewExpander(st.session_state.high, row[3], row[1], row[2])
+
 
 #Expander Logic
-def createNewExpander(origin, name):
-    description = getDescription()
+def createNewExpander(origin, name, description, response):
     origin.append({
         "name": name,
-        "description": description
+        "description": description,
+        "id": st.session_state.index
         })
+    st.session_state.mapIndexToTextArea[st.session_state.index] = response
+    st.session_state.index += 1
 
 def is_valid_email(email):
     # A basic regex pattern for email validation
@@ -51,6 +70,7 @@ with col2:
     st.write("")
     if st.button("Pull Emails"):
         save_email_as_json()
+        makeNewExpanders()
         sendButton.success("Done!")
         sendButton.empty()
 
@@ -118,10 +138,6 @@ with profile:
 with low:
     st.header("Low Match/Scam")
 
-    #Generate Test Expanders
-    if st.button("low"):
-        createNewExpander(st.session_state.low, "Void Paper")
-
     if(len(st.session_state.low) == 0):
         st.write("No Low Match or Scam Likely Emails...")
 
@@ -130,11 +146,15 @@ with low:
 
         with st.expander(data["name"]):
             st.write(data["description"])
+            key_name = f"lowReply_{i}"
+            if key_name not in st.session_state:
+                st.session_state[key_name] = st.session_state.mapIndexToTextArea.get(data["id"], "")
 
-            text = st.text_area(
+            reply = st.text_area(
                 "Email Response",
-                value="This is the default text",
-                height=200
+                value=st.session_state[key_name],
+                height=200,
+                key=key_name
             )
 
             action = st.selectbox(
@@ -154,18 +174,24 @@ with low:
 with medium:
     st.header("Clarification Needed")
 
-    #Generate Test Expanders
-    if st.button("medium"):
-        createNewExpander(st.session_state.medium, "Someone Shady")
-
     if(len(st.session_state.medium) == 0):
-        st.write("No Medium Match or Clarification Needed Emails...")
+        st.write("No Emails Needing Clarification...")
 
     for i in range(len(st.session_state.medium)):
         data = st.session_state.medium[i]
 
         with st.expander(data["name"]):
             st.write(data["description"])
+            key_name = f"mediumReply_{i}"
+            if key_name not in st.session_state:
+                st.session_state[key_name] = st.session_state.mapIndexToTextArea.get(data["id"], "")
+
+            reply = st.text_area(
+                "Email Response",
+                value=st.session_state[key_name],
+                height=200,
+                key=key_name
+            )
 
             action = st.selectbox(
                 "Action",
@@ -186,10 +212,6 @@ with medium:
 with high:
     st.header("High Match")
 
-    #Generate Test Expanders
-    if st.button("high"):
-        createNewExpander(st.session_state.high, "Big Yahu")
-
     if(len(st.session_state.high) == 0):
         st.write("No High Match Emails...")
 
@@ -198,6 +220,16 @@ with high:
 
         with st.expander(data["name"]):
             st.write(data["description"])
+            key_name = f"highReply_{i}"
+            if key_name not in st.session_state:
+                st.session_state[key_name] = st.session_state.mapIndexToTextArea.get(data["id"], "")
+
+            reply = st.text_area(
+                "Email Response",
+                value=st.session_state.mapIndexToTextArea.get(data["id"], ""),
+                height=200,
+                key=f"highReply_{i}"
+            )
 
             action = st.selectbox(
                 "Action",
