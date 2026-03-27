@@ -2,17 +2,25 @@ import os
 import json
 
 descriptionBase = """
-    Scam Likelyhood: [BS]% \n
-    Budget Fit: [Money]/10 \n
-    Scope Clarity: [Clear]/10 \n
-    Project Fit: [Strong]/10 \n
-    Reasonable Timeline: [YayNay] \n
-    Summary: [LLM] \n
+**Scam Likelihood:** [BS]%
 
-    Original Email:
-    
-    Subject: [idkman] \n
-    [OG]
+**Budget Fit:** [Money]/10
+
+**Scope Clarity:** [Clear]/10
+
+**Project Fit:** [Strong]/10
+
+**Reasonable Timeline:** [YayNay]
+
+**Summary:** [LLM]
+
+---
+
+### Original Email
+
+**Subject:** [idkman]
+
+[OG]
 """
 
 latest_email = None
@@ -26,6 +34,7 @@ def get_latest_analysis(llm_logs):
     return json.loads(args_str)
 
 def openFiles():
+    global latest_email
     # Open Files
     BASE_DIR = os.path.dirname(__file__)
 
@@ -42,6 +51,7 @@ def openFiles():
 
 
     # Load llm_logs.jsonl (JSON Lines format)
+    llm_logs.clear()
     with open(llm_logs_path, "r") as f:
         for line in f:
             line = line.strip()
@@ -73,6 +83,7 @@ def getDescription():
     template = template.replace("[BS]", str(analysis["scam_likelihood"]))
     template = template.replace("[Money]", str(analysis["budget_fit"]))
     template = template.replace("[Clear]", str(analysis["scope_clarity"]))
+    template = template.replace("[Strong]", str(analysis.get("project_fit", "—")))
     template = template.replace("[YayNay]", "Yes" if analysis["timeline_reasonable"] else "No")
     template = template.replace("[LLM]", analysis["summary"])
 

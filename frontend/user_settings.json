@@ -1,11 +1,11 @@
 {
-  "user_personal": {
-    "name": "Alex Rivera",
-    "email": "alex@example.com",
-    "website": "https://www.alexrivera.dev",
-    "ideal_start": 9,
-    "ideal_end": 17,
-    "ideal_wage": 100,
-    "tech_stack": "[[Responsive web design, frontend bug fixing, API integrations, React, Streamlit, Shopify, and turning vague requests into scoped deliverables]]"
-  }
+    "user_personal": {
+        "name": "Alex Rivera",
+        "email": "alex@example.com",
+        "website": "https://www.alexrivera.dev",
+        "ideal_start": 0,
+        "ideal_end": 17,
+        "ideal_wage": 100.0,
+        "tech_stack": "[[Responsive web design, frontend bug fixing, API integrations, React, Streamlit, Shopify, and turning vague requests into scoped deliverables]]"
+    }
 }
