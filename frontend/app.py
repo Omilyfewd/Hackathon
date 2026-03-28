@@ -29,7 +29,7 @@ if "high" not in st.session_state:
 
 #Functions
 if 'index' not in st.session_state:
-    index = 0
+    st.session_state.index = 0
 
 if 'mapIndexToTextArea' not in st.session_state:
     st.session_state.mapIndexToTextArea = {}
@@ -55,6 +55,52 @@ def createNewExpander(origin, name, description, response):
         })
     st.session_state.mapIndexToTextArea[st.session_state.index] = response
     st.session_state.index += 1
+
+
+def build_email_html(data, reply):
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <style>
+            body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }}
+            .header {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }}
+            .label {{ font-weight: bold; color: #555; }}
+            .content-box {{ background: #f9f9f9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50; white-space: pre-wrap; }}
+            .meta {{ font-size: 0.9em; color: #888; margin-top: 20px; }}
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <h2>Email Response Log</h2>
+            <p><span class="label">Recipient:</span> {data.get('name', 'N/A')}</p>
+            <p><span class="label">Sender:</span> {data.get('sender_email', 'N/A')}</p>
+        </div>
+
+        <div>
+            <p class="label">Original Analysis Description:</p>
+            <p>{data.get('description', 'No description provided.')}</p>
+        </div>
+
+        <div>
+            <p class="label">Final Sent Reply:</p>
+            <div class="content-box">{reply}</div>
+        </div>
+    </body>
+    </html>
+    """
+
+
+def save_email_log(html_content):
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
+    os.makedirs(target_dir, exist_ok=True)
+    file_path = os.path.join(target_dir, "example_email.html")
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(html_content)
+
+    return file_path
 
 def is_valid_email(email):
     # A basic regex pattern for email validation
@@ -172,55 +218,10 @@ with low:
                 if action == "Move to High Match":
                     st.session_state.high.append(item)
                 elif action == "Send":
-                    # 1. Setup the relative path
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
-                    os.makedirs(target_dir, exist_ok=True)
-
-                    # 2. Define the HTML file path
-                    file_path = os.path.join(target_dir, "example_email.html")
-
-                    # 3. Create the HTML content with some basic styling
-                    html_content = f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <style>
-                            body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }}
-                            .header {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }}
-                            .label {{ font-weight: bold; color: #555; }}
-                            .content-box {{ background: #f9f9f9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50; white-space: pre-wrap; }}
-                            .meta {{ font-size: 0.9em; color: #888; margin-top: 20px; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h2>Email Response Log</h2>
-                            <p><span class="label">Recipient:</span> {data.get('name', 'N/A')}</p>
-                            <p><span class="label">Sender:</span> {data.get('sender_email', 'N/A')}</p>
-                        </div>
-
-                        <div>
-                            <p class="label">Original Analysis Description:</p>
-                            <p>{data.get('description', 'No description provided.')}</p>
-                        </div>
-
-                        <div>
-                            <p class="label">Final Sent Reply:</p>
-                            <div class="content-box">{reply}</div>
-                        </div>
-                    </body>
-                    </html>
-                    """
-
-                    # 4. Write the file
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-
+                    html_content = build_email_html(data, reply)
+                    file_path = save_email_log(html_content)
                     st.success(f"HTML Log created at: {os.path.normpath(file_path)}")
-
-                    # send_test_email()
-
+                    send_test_email(html_content)
                     st.success(f"Log saved to: {os.path.normpath(file_path)}")
                 st.rerun()
 
@@ -260,55 +261,10 @@ with medium:
                 elif action == "Move to High Match":
                     st.session_state.high.append(item)
                 elif action == "Send":
-                    # 1. Setup the relative path
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
-                    os.makedirs(target_dir, exist_ok=True)
-
-                    # 2. Define the HTML file path
-                    file_path = os.path.join(target_dir, "example_email.html")
-
-                    # 3. Create the HTML content with some basic styling
-                    html_content = f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <style>
-                            body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }}
-                            .header {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }}
-                            .label {{ font-weight: bold; color: #555; }}
-                            .content-box {{ background: #f9f9f9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50; white-space: pre-wrap; }}
-                            .meta {{ font-size: 0.9em; color: #888; margin-top: 20px; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h2>Email Response Log</h2>
-                            <p><span class="label">Recipient:</span> {data.get('name', 'N/A')}</p>
-                            <p><span class="label">Sender:</span> {data.get('sender_email', 'N/A')}</p>
-                        </div>
-
-                        <div>
-                            <p class="label">Original Analysis Description:</p>
-                            <p>{data.get('description', 'No description provided.')}</p>
-                        </div>
-
-                        <div>
-                            <p class="label">Final Sent Reply:</p>
-                            <div class="content-box">{reply}</div>
-                        </div>
-                    </body>
-                    </html>
-                    """
-
-                    # 4. Write the file
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-
+                    html_content = build_email_html(data, reply)
+                    file_path = save_email_log(html_content)
                     st.success(f"HTML Log created at: {os.path.normpath(file_path)}")
-
-                    send_test_email()
-
+                    send_test_email(html_content)
                     st.success(f"Log saved to: {os.path.normpath(file_path)}")
 
                 st.rerun()
@@ -347,54 +303,9 @@ with high:
                 if action == "Move to Low Match/Scam":
                     st.session_state.low.append(item)
                 elif action == "Send":
-                    # 1. Setup the relative path
-                    current_dir = os.path.dirname(os.path.abspath(__file__))
-                    target_dir = os.path.join(current_dir, "..", "logs_test_outputs")
-                    os.makedirs(target_dir, exist_ok=True)
-
-                    # 2. Define the HTML file path
-                    file_path = os.path.join(target_dir, "example_email.html")
-
-                    # 3. Create the HTML content with some basic styling
-                    html_content = f"""
-                    <!DOCTYPE html>
-                    <html>
-                    <head>
-                        <style>
-                            body {{ font-family: sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px; }}
-                            .header {{ border-bottom: 2px solid #eee; padding-bottom: 10px; margin-bottom: 20px; }}
-                            .label {{ font-weight: bold; color: #555; }}
-                            .content-box {{ background: #f9f9f9; padding: 15px; border-radius: 4px; border-left: 4px solid #4CAF50; white-space: pre-wrap; }}
-                            .meta {{ font-size: 0.9em; color: #888; margin-top: 20px; }}
-                        </style>
-                    </head>
-                    <body>
-                        <div class="header">
-                            <h2>Email Response Log</h2>
-                            <p><span class="label">Recipient:</span> {data.get('name', 'N/A')}</p>
-                            <p><span class="label">Sender:</span> {data.get('sender_email', 'N/A')}</p>
-                        </div>
-
-                        <div>
-                            <p class="label">Original Analysis Description:</p>
-                            <p>{data.get('description', 'No description provided.')}</p>
-                        </div>
-
-                        <div>
-                            <p class="label">Final Sent Reply:</p>
-                            <div class="content-box">{reply}</div>
-                        </div>
-                    </body>
-                    </html>
-                    """
-
-                    # 4. Write the file
-                    with open(file_path, "w", encoding="utf-8") as f:
-                        f.write(html_content)
-
+                    html_content = build_email_html(data, reply)
+                    file_path = save_email_log(html_content)
                     st.success(f"HTML Log created at: {os.path.normpath(file_path)}")
-
-                    send_test_email()
-
+                    send_test_email(html_content)
                     st.success(f"Log saved to: {os.path.normpath(file_path)}")
                 st.rerun()
